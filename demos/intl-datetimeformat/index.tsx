@@ -77,7 +77,7 @@ function updateConfigFromURL() {
       era: getOption(params, "era") ?? "none",
       hour12: getOption(params, "hour12") ?? "auto",
       timeZoneName: getOption(params, "timeZoneName") ?? "none",
-    } as any,
+    } as Intl.DateTimeFormatOptions,
   };
 }
 
