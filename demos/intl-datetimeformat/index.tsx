@@ -76,7 +76,8 @@ function updateConfigFromURL() {
       second: getOption(params, "second") ?? "numeric",
       era: getOption(params, "era") ?? "none",
       hour12: getOption(params, "hour12") ?? "auto",
-    } as Intl.DateTimeFormatOptions,
+      timeZoneName: getOption(params, "timeZoneName") ?? "none",
+    } as any,
   };
 }
 
@@ -113,6 +114,8 @@ function pushState() {
   url.searchParams.set("minute", config.options.minute ?? "none");
   url.searchParams.set("second", config.options.second ?? "none");
   url.searchParams.set("era", config.options.era ?? "auto");
+  url.searchParams.set("timeZoneName", config.options.timeZoneName ?? "none");
+  url.searchParams.set("hours12", String(config.options.hour12));
   history.pushState(null, "", url);
 }
 
