@@ -46594,7 +46594,7 @@
                 })) }, Array.from(locales, (locale) => (jsx("calcite-combobox-item", { "text-label": locale, value: locale, selected: config.locale === locale }))))));
     }
     function renderCommonOptions(renderedFormatOptions) {
-        return (jsx("calcite-block-section", { open: true, text: "Style", "toggle-display": "button" }, renderRadioButtonGroup("hour12", ["auto", "true", "false"], renderedFormatOptions)));
+        return (jsx("calcite-block-section", { open: true, text: "Options", "toggle-display": "button" }, renderRadioButtonGroup("hour12", ["auto", "true", "false"], renderedFormatOptions)));
     }
     function renderStyleOptions(renderedFormatOptions) {
         return (jsx("calcite-block-section", { open: true, text: "Style", "toggle-display": "button" },

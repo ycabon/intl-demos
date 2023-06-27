@@ -233,7 +233,7 @@ function renderCommonOptions(
   renderedFormatOptions: Intl.DateTimeFormatOptions
 ) {
   return (
-    <calcite-block-section open text="Style" toggle-display="button">
+    <calcite-block-section open text="Options" toggle-display="button">
       {renderRadioButtonGroup(
         "hour12",
         ["auto", "true", "false"],
