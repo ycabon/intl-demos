@@ -57,9 +57,9 @@ function updateConfigFromURL() {
     options: {
       dateStyle: getOption("dateStyle") ?? "medium",
       timeStyle: getOption("timeStyle") ?? "medium",
-      weekday: getOption("weekday") ?? "long",
+      weekday: getOption("weekday") ?? "none",
       year: getOption("year") ?? "numeric",
-      month: getOption("month") ?? "numeric",
+      month: getOption("month") ?? "short",
       day: getOption("day") ?? "numeric",
       hour: getOption("hour") ?? "numeric",
       minute: getOption("minute") ?? "numeric",
