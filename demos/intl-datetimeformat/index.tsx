@@ -18,10 +18,8 @@ const locales = new Set<string>([
 // Date to format
 const date = Date.UTC(2020, 2, 2, 22, 0, 0, 0);
 
-const url = new URL(window.location.href);
-const params = url.searchParams;
-
 function getOption<K extends keyof Intl.DateTimeFormatOptions>(
+  params: URLSearchParams,
   key: K
 ): Intl.DateTimeFormatOptions[K] | undefined {
   return (params.get(key) as Intl.DateTimeFormatOptions[K] | null) || undefined;
@@ -51,21 +49,24 @@ const fineGrainKeys = new Set<
 let config = updateConfigFromURL();
 
 function updateConfigFromURL() {
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
+
   return {
     locale: params.get("locale") || "en-US",
     advanced: params.get("advanced") === "true",
     options: {
-      dateStyle: getOption("dateStyle") ?? "medium",
-      timeStyle: getOption("timeStyle") ?? "medium",
-      weekday: getOption("weekday") ?? "none",
-      year: getOption("year") ?? "numeric",
-      month: getOption("month") ?? "short",
-      day: getOption("day") ?? "numeric",
-      hour: getOption("hour") ?? "numeric",
-      minute: getOption("minute") ?? "numeric",
-      second: getOption("second") ?? "numeric",
-      era: getOption("era") ?? "none",
-      hour12: getOption("hour12") ?? "auto",
+      dateStyle: getOption(params, "dateStyle") ?? "medium",
+      timeStyle: getOption(params, "timeStyle") ?? "medium",
+      weekday: getOption(params, "weekday") ?? "none",
+      year: getOption(params, "year") ?? "numeric",
+      month: getOption(params, "month") ?? "short",
+      day: getOption(params, "day") ?? "numeric",
+      hour: getOption(params, "hour") ?? "numeric",
+      minute: getOption(params, "minute") ?? "numeric",
+      second: getOption(params, "second") ?? "numeric",
+      era: getOption(params, "era") ?? "none",
+      hour12: getOption(params, "hour12") ?? "auto",
     } as Intl.DateTimeFormatOptions,
   };
 }
