@@ -823,6 +823,20 @@
         };
     };
 
+    function combine(...afterCreateCallbacks) {
+        return (el, projectionOptions, vnodeSelector, properties, children) => {
+            for (const callback of afterCreateCallbacks) {
+                callback(el, projectionOptions, vnodeSelector, properties, children);
+            }
+        };
+    }
+    function setAttributes(attr) {
+        return (el, projectionOptions, vnodeSelector, properties, children) => {
+            for (const key of Object.keys(attr)) {
+                el.setAttribute(key, attr[key]);
+            }
+        };
+    }
     function afterCreateEventHandler(type, listener) {
         return (el, projectionOptions, vnodeSelector, properties, children) => {
             el.addEventListener(type, listener);
@@ -46468,8 +46482,12 @@
     function updateConfigFromURL() {
         const url = new URL(window.location.href);
         const params = url.searchParams;
+        const locale = params.get("locale") || "en-US";
+        if (!locales.has(locale)) {
+            locales.add(locale);
+        }
         return {
-            locale: params.get("locale") || "en-US",
+            locale,
             advanced: params.get("advanced") === "true",
             options: {
                 dateStyle: getOption(params, "dateStyle") ?? "medium",
@@ -46550,7 +46568,7 @@
             jsx("calcite-panel", { heading: "Intl.DateTimeFormat" },
                 jsx("div", { style: "background-color: #f0f0f0; width: 100%; height: 100%; display: flex; flex-direction: row; justify-content: center; gap: 16px;" },
                     jsx("calcite-block", { open: true, style: "width: 400px" },
-                        renderLocaleSelect(),
+                        renderLocaleSelect(locales, config.locale),
                         renderStyleOptions(renderedFormatOptions),
                         renderCommonOptions(renderedFormatOptions)),
                     jsx("div", { style: "display: flex; flex-direction: column; width: 600px" },
@@ -46564,12 +46582,16 @@
                                 jsx("code", null, "Intl.DateTimeFormat"),
                                 " on MDN")))))));
     }
-    function renderLocaleSelect() {
+    function renderLocaleSelect(locales, currentLocale) {
         return (jsx("calcite-label", { key: "locale" },
             "Locale",
-            jsx("calcite-select", { scale: "s", afterCreate: afterCreateEventHandler("calciteSelectChange", (event) => {
-                    updateLocale(event.target.selectedOption.value);
-                }) }, Array.from(locales, (locale) => (jsx("calcite-option", { label: locale, value: locale, selected: config.locale === locale }))))));
+            jsx("calcite-combobox", { value: currentLocale, afterCreate: combine(setAttributes({
+                    "clear-disabled": "true",
+                    "selection-mode": "single",
+                    "allow-custom-values": "true",
+                }), afterCreateEventHandler("calciteComboboxChange", (event) => {
+                    updateLocale(event.target.selectedItems[0].value);
+                })) }, Array.from(locales, (locale) => (jsx("calcite-combobox-item", { "text-label": locale, value: locale, selected: config.locale === locale }))))));
     }
     function renderCommonOptions(renderedFormatOptions) {
         return (jsx("calcite-block-section", { open: true, text: "Style", "toggle-display": "button" }, renderRadioButtonGroup("hour12", ["auto", "true", "false"], renderedFormatOptions)));

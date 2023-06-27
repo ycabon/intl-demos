@@ -1,6 +1,10 @@
 import { createProjector } from "maquette";
 import { jsx } from "maquette-jsx";
-import { afterCreateEventHandler } from "../utils/events";
+import {
+  afterCreateEventHandler,
+  combine,
+  setAttributes,
+} from "../utils/events";
 import { highlight } from "../utils/highlight";
 
 // locales exposed through the UI
@@ -51,9 +55,14 @@ let config = updateConfigFromURL();
 function updateConfigFromURL() {
   const url = new URL(window.location.href);
   const params = url.searchParams;
+  const locale = params.get("locale") || "en-US";
+
+  if (!locales.has(locale)) {
+    locales.add(locale);
+  }
 
   return {
-    locale: params.get("locale") || "en-US",
+    locale,
     advanced: params.get("advanced") === "true",
     options: {
       dateStyle: getOption(params, "dateStyle") ?? "medium",
@@ -156,7 +165,7 @@ function render() {
         <div style="background-color: #f0f0f0; width: 100%; height: 100%; display: flex; flex-direction: row; justify-content: center; gap: 16px;">
           <calcite-block open style="width: 400px">
             {/* <div style="background: white; padding: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3)"> */}
-            {renderLocaleSelect()}
+            {renderLocaleSelect(locales, config.locale)}
             {renderStyleOptions(renderedFormatOptions)}
             {renderCommonOptions(renderedFormatOptions)}
           </calcite-block>
@@ -191,27 +200,31 @@ function render() {
   );
 }
 
-function renderLocaleSelect() {
+function renderLocaleSelect(locales: Set<string>, currentLocale: string) {
   return (
     <calcite-label key="locale">
       Locale
-      <calcite-select
-        scale="s"
-        afterCreate={afterCreateEventHandler(
-          "calciteSelectChange",
-          (event: any) => {
-            updateLocale(event.target.selectedOption.value);
-          }
+      <calcite-combobox
+        value={currentLocale}
+        afterCreate={combine(
+          setAttributes({
+            "clear-disabled": "true",
+            "selection-mode": "single",
+            "allow-custom-values": "true",
+          }),
+          afterCreateEventHandler("calciteComboboxChange", (event: any) => {
+            updateLocale(event.target.selectedItems[0].value);
+          })
         )}
       >
         {Array.from(locales, (locale) => (
-          <calcite-option
-            label={locale}
+          <calcite-combobox-item
+            text-label={locale}
             value={locale}
             selected={config.locale === locale}
-          ></calcite-option>
+          ></calcite-combobox-item>
         ))}
-      </calcite-select>
+      </calcite-combobox>
     </calcite-label>
   );
 }
