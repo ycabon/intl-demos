@@ -7,6 +7,10 @@ import {
 } from "../utils/events";
 import { highlight } from "../utils/highlight";
 
+interface DateTimeFormatOptions extends Intl.DateTimeFormatOptions {
+  fractionalSecondDigits: number | undefined;
+}
+
 // locales exposed through the UI
 const locales = new Set<string>([
   "en",
@@ -22,19 +26,19 @@ const locales = new Set<string>([
 // Date to format
 const date = Date.UTC(2020, 2, 2, 22, 0, 0, 0);
 
-function getOption<K extends keyof Intl.DateTimeFormatOptions>(
+function getOption<K extends keyof DateTimeFormatOptions>(
   params: URLSearchParams,
   key: K
-): Intl.DateTimeFormatOptions[K] | undefined {
-  return (params.get(key) as Intl.DateTimeFormatOptions[K] | null) || undefined;
+): DateTimeFormatOptions[K] | undefined {
+  return (params.get(key) as DateTimeFormatOptions[K] | null) || undefined;
 }
 
-const predefinedKeys = new Set<keyof Intl.DateTimeFormatOptions>([
+const predefinedKeys = new Set<keyof DateTimeFormatOptions>([
   "dateStyle",
   "timeStyle",
 ]);
 const fineGrainKeys = new Set<
-  keyof Intl.DateTimeFormatOptions | "fractionalSecondDigits"
+  keyof DateTimeFormatOptions | "fractionalSecondDigits"
 >([
   "era",
   "year",
@@ -77,7 +81,9 @@ function updateConfigFromURL() {
       era: getOption(params, "era") ?? "none",
       hour12: getOption(params, "hour12") ?? "auto",
       timeZoneName: getOption(params, "timeZoneName") ?? "none",
-    } as Intl.DateTimeFormatOptions,
+      fractionalSecondDigits:
+        getOption(params, "fractionalSecondDigits") ?? "none",
+    } as DateTimeFormatOptions,
   };
 }
 
@@ -116,6 +122,10 @@ function pushState() {
   url.searchParams.set("era", config.options.era ?? "auto");
   url.searchParams.set("timeZoneName", config.options.timeZoneName ?? "none");
   url.searchParams.set("hours12", String(config.options.hour12));
+  url.searchParams.set(
+    "fractionalSecondDigits",
+    "" + config.options.fractionalSecondDigits ?? "none"
+  );
   history.pushState(null, "", url);
 }
 
@@ -125,24 +135,22 @@ window.addEventListener("popstate", (event) => {
 });
 
 function getDateTimeFormatOptions() {
-  const renderedFormatOptions: Intl.DateTimeFormatOptions = {
+  const renderedFormatOptions: DateTimeFormatOptions = {
     ...config.options,
   };
 
-  const keys = Object.keys(
-    config.options
-  ) as (keyof Intl.DateTimeFormatOptions)[];
+  const keys = Object.keys(config.options) as (keyof DateTimeFormatOptions)[];
 
   for (const key of keys) {
     if (!config.advanced && fineGrainKeys.has(key)) {
-      delete renderedFormatOptions[key as keyof Intl.DateTimeFormatOptions];
+      delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
     } else if (config.advanced && predefinedKeys.has(key)) {
-      delete renderedFormatOptions[key as keyof Intl.DateTimeFormatOptions];
+      delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
     } else if (
       config.options[key] === "none" ||
       config.options[key] === "auto"
     ) {
-      delete renderedFormatOptions[key as keyof Intl.DateTimeFormatOptions];
+      delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
     }
   }
 
@@ -232,9 +240,7 @@ function renderLocaleSelect(locales: Set<string>, currentLocale: string) {
   );
 }
 
-function renderCommonOptions(
-  renderedFormatOptions: Intl.DateTimeFormatOptions
-) {
+function renderCommonOptions(renderedFormatOptions: DateTimeFormatOptions) {
   return (
     <calcite-block-section open text="Options" toggle-display="button">
       {renderRadioButtonGroup(
@@ -246,7 +252,7 @@ function renderCommonOptions(
   );
 }
 
-function renderStyleOptions(renderedFormatOptions: Intl.DateTimeFormatOptions) {
+function renderStyleOptions(renderedFormatOptions: DateTimeFormatOptions) {
   return (
     <calcite-block-section open text="Style" toggle-display="button">
       <calcite-tabs layout="center">
@@ -280,7 +286,7 @@ function renderStyleOptions(renderedFormatOptions: Intl.DateTimeFormatOptions) {
 }
 
 function renderStyleFormatOptions(
-  renderedFormatOptions: Intl.DateTimeFormatOptions
+  renderedFormatOptions: DateTimeFormatOptions
 ) {
   return [
     renderRadioButtonGroup(
@@ -297,7 +303,7 @@ function renderStyleFormatOptions(
 }
 
 function renderAdvancedStyleFormatOptions(
-  renderedFormatOptions: Intl.DateTimeFormatOptions
+  renderedFormatOptions: DateTimeFormatOptions
 ) {
   return [
     renderRadioButtonGroup(
@@ -341,6 +347,11 @@ function renderAdvancedStyleFormatOptions(
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
+      "fractionalSecondDigits",
+      ["none", "1", "2", "3"],
+      renderedFormatOptions
+    ),
+    renderRadioButtonGroup(
       "timeZoneName",
       ["none", "long", "short"],
       renderedFormatOptions
@@ -348,10 +359,10 @@ function renderAdvancedStyleFormatOptions(
   ];
 }
 
-function renderRadioButtonGroup<K extends keyof Intl.DateTimeFormatOptions>(
+function renderRadioButtonGroup<K extends keyof DateTimeFormatOptions>(
   property: K,
   values: string[],
-  formatOptions: Intl.DateTimeFormatOptions
+  formatOptions: DateTimeFormatOptions
 ) {
   return (
     <calcite-label key={property}>
@@ -376,7 +387,7 @@ function renderRadioButtonGroup<K extends keyof Intl.DateTimeFormatOptions>(
   );
 }
 
-function radioHandler<K extends keyof Intl.DateTimeFormatOptions>(prop: K) {
+function radioHandler<K extends keyof DateTimeFormatOptions>(prop: K) {
   return afterCreateEventHandler(
     "calciteSegmentedControlChange",
     (event: any) => {

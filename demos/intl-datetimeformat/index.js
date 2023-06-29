@@ -46502,6 +46502,7 @@
                 era: getOption(params, "era") ?? "none",
                 hour12: getOption(params, "hour12") ?? "auto",
                 timeZoneName: getOption(params, "timeZoneName") ?? "none",
+                fractionalSecondDigits: getOption(params, "fractionalSecondDigits") ?? "none",
             },
         };
     }
@@ -46537,6 +46538,7 @@
         url.searchParams.set("era", config.options.era ?? "auto");
         url.searchParams.set("timeZoneName", config.options.timeZoneName ?? "none");
         url.searchParams.set("hours12", String(config.options.hour12));
+        url.searchParams.set("fractionalSecondDigits", "" + config.options.fractionalSecondDigits ?? "none");
         history.pushState(null, "", url);
     }
     window.addEventListener("popstate", (event) => {
@@ -46628,6 +46630,7 @@
             renderRadioButtonGroup("hour", ["none", "numeric", "2-digit"], renderedFormatOptions),
             renderRadioButtonGroup("minute", ["none", "numeric", "2-digit"], renderedFormatOptions),
             renderRadioButtonGroup("second", ["none", "numeric", "2-digit"], renderedFormatOptions),
+            renderRadioButtonGroup("fractionalSecondDigits", ["none", "1", "2", "3"], renderedFormatOptions),
             renderRadioButtonGroup("timeZoneName", ["none", "long", "short"], renderedFormatOptions),
         ];
     }
