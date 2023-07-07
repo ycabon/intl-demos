@@ -8,7 +8,7 @@ import {
 import { highlight } from "../utils/highlight";
 
 interface DateTimeFormatOptions extends Intl.DateTimeFormatOptions {
-  fractionalSecondDigits: number | undefined;
+  fractionalSecondDigits?: number | undefined;
 }
 
 // locales exposed through the UI
@@ -22,15 +22,21 @@ const locales = new Set<string>([
   "es-ES",
   "es-MX",
 ]);
+const userLocales = new Set<string>(
+  localStorage.getItem("userLocales")?.split("#") ?? []
+);
 
 // Date to format
-const date = Date.UTC(2020, 2, 2, 22, 0, 0, 0);
+const date = new Date(2020, 2, 2, 0, 0, 0, 0);
 
 function getOption<K extends keyof DateTimeFormatOptions>(
   params: URLSearchParams,
-  key: K
+  key: K,
+  defaultValue: DateTimeFormatOptions[K]
 ): DateTimeFormatOptions[K] | undefined {
-  return (params.get(key) as DateTimeFormatOptions[K] | null) || undefined;
+  return params.has(key)
+    ? (params.get(key) as DateTimeFormatOptions[K]) || undefined
+    : defaultValue;
 }
 
 const predefinedKeys = new Set<keyof DateTimeFormatOptions>([
@@ -53,38 +59,114 @@ const fineGrainKeys = new Set<
   "fractionalSecondDigits",
 ]);
 
+type Config = {
+  locale: string;
+  advanced: boolean;
+  options: DateTimeFormatOptions;
+};
+
+const defaultConfig: Config = {
+  locale: "en-US",
+  advanced: true,
+  options: {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    weekday: undefined,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    era: undefined,
+    hour12: undefined,
+    hourCycle: undefined,
+    timeZoneName: undefined,
+    fractionalSecondDigits: undefined,
+  },
+};
+
 // Initial selected options
 let config = updateConfigFromURL();
 
-function updateConfigFromURL() {
+function reset() {
+  userLocales.clear();
+  localStorage.removeItem("userLocales");
+  config = defaultConfig;
+  pushState();
+  projector.scheduleRender();
+}
+
+function updateConfigFromURL(): Config {
   const url = new URL(window.location.href);
   const params = url.searchParams;
-  const locale = params.get("locale") || "en-US";
+  const locale = params.get("locale") || defaultConfig.locale;
 
-  if (!locales.has(locale)) {
-    locales.add(locale);
+  if (locale && !locales.has(locale) && !userLocales.has(locale)) {
+    userLocales.add(locale);
+    localStorage.setItem("userLocales", Array.from(userLocales).join("#"));
   }
+
+  const defaultOptions = defaultConfig.options;
 
   return {
     locale,
-    advanced: params.get("advanced") === "true",
+    advanced: params.has("advanced")
+      ? params.get("advanced") === "true"
+      : defaultConfig.advanced,
     options: {
-      dateStyle: getOption(params, "dateStyle") ?? "medium",
-      timeStyle: getOption(params, "timeStyle") ?? "medium",
-      weekday: getOption(params, "weekday") ?? "none",
-      year: getOption(params, "year") ?? "numeric",
-      month: getOption(params, "month") ?? "short",
-      day: getOption(params, "day") ?? "numeric",
-      hour: getOption(params, "hour") ?? "numeric",
-      minute: getOption(params, "minute") ?? "numeric",
-      second: getOption(params, "second") ?? "numeric",
-      era: getOption(params, "era") ?? "none",
-      hour12: getOption(params, "hour12") ?? "auto",
-      timeZoneName: getOption(params, "timeZoneName") ?? "none",
-      fractionalSecondDigits:
-        getOption(params, "fractionalSecondDigits") ?? "none",
+      dateStyle: getOption(params, "dateStyle", defaultOptions.dateStyle),
+      timeStyle: getOption(params, "timeStyle", defaultOptions.timeStyle),
+      weekday: getOption(params, "weekday", defaultOptions.weekday),
+      year: getOption(params, "year", defaultOptions.year),
+      month: getOption(params, "month", defaultOptions.month),
+      day: getOption(params, "day", defaultOptions.day),
+      hour: getOption(params, "hour", defaultOptions.hour),
+      minute: getOption(params, "minute", defaultOptions.minute),
+      second: getOption(params, "second", defaultOptions.second),
+      era: getOption(params, "era", defaultOptions.era),
+      hour12: getOption(params, "hour12", defaultOptions.hour12),
+      hourCycle: getOption(params, "hourCycle", defaultOptions.hourCycle),
+      timeZoneName: getOption(
+        params,
+        "timeZoneName",
+        defaultOptions.timeZoneName
+      ),
+      fractionalSecondDigits: getOption(
+        params,
+        "fractionalSecondDigits",
+        defaultOptions.fractionalSecondDigits
+      ),
     } as DateTimeFormatOptions,
   };
+}
+
+function addLocale(locale: string) {
+  if (locales.has(locale)) {
+    return;
+  }
+
+  try {
+    new Intl.DateTimeFormat(locale);
+    userLocales.add(locale);
+    localStorage.setItem("userLocales", Array.from(userLocales).join("#"));
+    updateLocale(locale);
+  } catch (e) {
+    console.error("Couldn't add locale", e);
+  }
+}
+
+function deleteLocale(locale: string) {
+  if (!userLocales.has(locale)) {
+    return;
+  }
+
+  userLocales.delete(locale);
+  localStorage.setItem("userLocales", Array.from(userLocales).join("#"));
+
+  if (config.locale === locale) {
+    updateLocale("en");
+  }
 }
 
 function updateLocale(locale: string) {
@@ -101,6 +183,7 @@ function updateFormatStyle(advanced: boolean) {
 
 function updateFormatOptions(options: Partial<Intl.DateTimeFormatOptions>) {
   Object.assign(config.options, options);
+  (document.getElementById("styleFromWebmapSelect")! as any).value = null;
   pushState();
   projector.scheduleRender();
 }
@@ -110,21 +193,22 @@ function pushState() {
   url.search = "";
   url.searchParams.set("locale", config.locale);
   url.searchParams.set("advanced", String(config.advanced));
-  url.searchParams.set("dateStyle", config.options.dateStyle ?? "none");
-  url.searchParams.set("timeStyle", config.options.timeStyle ?? "none");
-  url.searchParams.set("weekday", config.options.weekday ?? "none");
-  url.searchParams.set("year", config.options.year ?? "none");
-  url.searchParams.set("month", config.options.month ?? "none");
-  url.searchParams.set("day", config.options.day ?? "none");
-  url.searchParams.set("hour", config.options.hour ?? "none");
-  url.searchParams.set("minute", config.options.minute ?? "none");
-  url.searchParams.set("second", config.options.second ?? "none");
-  url.searchParams.set("era", config.options.era ?? "auto");
-  url.searchParams.set("timeZoneName", config.options.timeZoneName ?? "none");
-  url.searchParams.set("hours12", String(config.options.hour12));
+  url.searchParams.set("dateStyle", config.options.dateStyle ?? "");
+  url.searchParams.set("timeStyle", config.options.timeStyle ?? "");
+  url.searchParams.set("weekday", config.options.weekday ?? "");
+  url.searchParams.set("year", config.options.year ?? "");
+  url.searchParams.set("month", config.options.month ?? "");
+  url.searchParams.set("day", config.options.day ?? "");
+  url.searchParams.set("hour", config.options.hour ?? "");
+  url.searchParams.set("minute", config.options.minute ?? "");
+  url.searchParams.set("second", config.options.second ?? "");
+  url.searchParams.set("era", config.options.era ?? "");
+  url.searchParams.set("timeZoneName", config.options.timeZoneName ?? "");
+  url.searchParams.set("hour12", String(config.options.hour12 ?? ""));
+  url.searchParams.set("hourCycle", config.options.hourCycle ?? "");
   url.searchParams.set(
     "fractionalSecondDigits",
-    "" + config.options.fractionalSecondDigits ?? "none"
+    String(config.options.fractionalSecondDigits ?? "")
   );
   history.pushState(null, "", url);
 }
@@ -170,39 +254,59 @@ function render() {
   return (
     <calcite-shell theme="light">
       <calcite-panel heading="Intl.DateTimeFormat">
-        {/* <header slot="header">
-        <h2 style="margin-left: 30px">Intl.DateTimeFormat</h2>
-      </header> */}
+        <calcite-action
+          slot="header-actions-end"
+          icon="refresh"
+          text="Reset changes made to Properties"
+          appearance="solid"
+          scale="m"
+          calcite-hydrated=""
+          onclick={reset}
+        ></calcite-action>
         <div style="background-color: #f0f0f0; width: 100%; height: 100%; display: flex; flex-direction: row; justify-content: center; gap: 16px;">
-          <calcite-block open style="width: 400px">
-            {/* <div style="background: white; padding: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3)"> */}
+          <calcite-block heading="Locale" open style="width: 200px">
             {renderLocaleSelect(locales, config.locale)}
-            {renderStyleOptions(renderedFormatOptions)}
-            {renderCommonOptions(renderedFormatOptions)}
           </calcite-block>
+          <div style="display: flex; flex-direction: column;">
+            <calcite-block
+              heading="WebMap date formats"
+              open
+              style="width: 500px"
+            >
+              {renderWebMapStyleSelect()}
+            </calcite-block>
+            <calcite-block heading="Style" open style="width: 500px">
+              {renderStyleOptions(renderedFormatOptions)}
+            </calcite-block>
+            <calcite-block heading="Options" open style="width: 500px">
+              {renderCommonOptions(renderedFormatOptions)}
+            </calcite-block>
+          </div>
           <div style="display: flex; flex-direction: column; width: 600px">
             <calcite-block heading="Result" open>
               <p style="font-size: large; max-width: 600px">{formattedDate}</p>
             </calcite-block>
-            <calcite-block heading="Code" open>
+            <calcite-block heading="Code" collapsible>
               {highlight("javascript", formattedSnippet)}
-              <calcite-button
-                appearance="outline"
-                icon-start="copyToClipboard"
-                color="light"
-                scale="s"
-                onclick={() => copyToClipboard(formattedSnippet)}
-              >
-                Copy to clipboard
-              </calcite-button>
-            </calcite-block>
-            <calcite-block heading="Learn More" open>
-              <a
-                target="_blank"
-                href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat"
-              >
-                <code>Intl.DateTimeFormat</code> on MDN
-              </a>
+              <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                <calcite-button
+                  appearance="outline"
+                  icon-start="copyToClipboard"
+                  color="light"
+                  scale="s"
+                  onclick={() => copyToClipboard(formattedSnippet)}
+                >
+                  Copy to clipboard
+                </calcite-button>
+                <calcite-link
+                  target="_blank"
+                  icon-end="launch"
+                  style="align-self: end"
+                  href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat"
+                >
+                  <code>Intl.DateTimeFormat</code> on MDN
+                </calcite-link>
+              </div>
             </calcite-block>
           </div>
         </div>
@@ -212,76 +316,99 @@ function render() {
 }
 
 function renderLocaleSelect(locales: Set<string>, currentLocale: string) {
-  return (
-    <calcite-label key="locale">
-      Locale
-      <calcite-combobox
-        value={currentLocale}
-        afterCreate={combine(
-          setAttributes({
-            "clear-disabled": "true",
-            "selection-mode": "single",
-            "allow-custom-values": "true",
-          }),
-          afterCreateEventHandler("calciteComboboxChange", (event: any) => {
-            updateLocale(event.target.selectedItems[0].value);
-          })
-        )}
-      >
-        {Array.from(locales, (locale) => (
-          <calcite-combobox-item
-            text-label={locale}
-            value={locale}
-            selected={config.locale === locale}
-          ></calcite-combobox-item>
-        ))}
-      </calcite-combobox>
-    </calcite-label>
-  );
+  return [
+    <calcite-list
+      selection-mode="single-persist"
+      afterCreate={afterCreateEventHandler(
+        "calciteListChange",
+        (event: any) => {
+          updateLocale(event.target.selectedItems[0].value);
+        }
+      )}
+    >
+      {Array.from(locales, (locale) => (
+        <calcite-list-item
+          label={locale}
+          value={locale}
+          selected={locale === currentLocale}
+          key={locale}
+        ></calcite-list-item>
+      ))}
+      {Array.from(userLocales, (locale) => (
+        <calcite-list-item
+          label={locale}
+          value={locale}
+          selected={locale === currentLocale}
+          key={locale}
+          closable
+          afterCreate={afterCreateEventHandler(
+            "calciteListItemClose",
+            (event: any) => deleteLocale(event.target.value)
+          )}
+        ></calcite-list-item>
+      ))}
+    </calcite-list>,
+    <calcite-input-text
+      placeholder="Add locale"
+      icon="language"
+      afterCreate={afterCreateEventHandler(
+        "calciteInputTextChange",
+        (event: any) => {
+          addLocale(event.target.value);
+          event.target.value = "";
+        }
+      )}
+    ></calcite-input-text>,
+  ];
 }
 
 function renderCommonOptions(renderedFormatOptions: DateTimeFormatOptions) {
-  return (
-    <calcite-block-section open text="Options" toggle-display="button">
-      {renderRadioButtonGroup(
-        "hour12",
-        ["auto", "true", "false"],
-        renderedFormatOptions
-      )}
-    </calcite-block-section>
-  );
+  return [
+    renderRadioButtonGroup(
+      "hour12",
+      ["true", "false"],
+      "auto",
+      renderedFormatOptions
+    ),
+    renderRadioButtonGroup(
+      "hourCycle",
+      ["h11", "h12", "h23", "h24"],
+      "auto",
+      renderedFormatOptions
+    ),
+  ];
 }
 
 function renderStyleOptions(renderedFormatOptions: DateTimeFormatOptions) {
   return (
-    <calcite-block-section open text="Style" toggle-display="button">
-      <calcite-tabs layout="center">
-        <calcite-tab-nav slot="title-group">
-          <calcite-tab-title
-            selected={!config.advanced}
-            afterCreate={afterCreateEventHandler("calciteTabsActivate", () => {
-              updateFormatStyle(false);
-            })}
-          >
-            Predefined styles
-          </calcite-tab-title>
-          <calcite-tab-title
-            selected={config.advanced}
-            afterCreate={afterCreateEventHandler("calciteTabsActivate", () => {
-              updateFormatStyle(true);
-            })}
-          >
-            Fine grain
-          </calcite-tab-title>
-        </calcite-tab-nav>
-        <calcite-tab selected={!config.advanced}>
-          {renderStyleFormatOptions(renderedFormatOptions)}
-        </calcite-tab>
-        <calcite-tab selected={config.advanced}>
+    <calcite-tabs layout="center">
+      <calcite-tab-nav slot="title-group">
+        <calcite-tab-title
+          selected={config.advanced}
+          afterCreate={afterCreateEventHandler("calciteTabsActivate", () => {
+            updateFormatStyle(true);
+          })}
+        >
+          Fine grain
+        </calcite-tab-title>
+        <calcite-tab-title
+          selected={!config.advanced}
+          afterCreate={afterCreateEventHandler("calciteTabsActivate", () => {
+            updateFormatStyle(false);
+          })}
+        >
+          Predefined styles
+        </calcite-tab-title>
+      </calcite-tab-nav>
+      <calcite-tab selected={config.advanced}>
+        <div style="display: flex; gap: 8px; flex-direction: column; padding-top: 8px;">
           {renderAdvancedStyleFormatOptions(renderedFormatOptions)}
-        </calcite-tab>
-      </calcite-tabs>
-    </calcite-block-section>
+        </div>
+      </calcite-tab>
+      <calcite-tab selected={!config.advanced}>
+        {renderStyleFormatOptions(renderedFormatOptions)}
+      </calcite-tab>
+    </calcite-tabs>
   );
 }
 
@@ -291,15 +418,203 @@ function renderStyleFormatOptions(
   return [
     renderRadioButtonGroup(
       "dateStyle",
-      ["none", "full", "long", "medium", "short"],
+      ["full", "long", "medium", "short"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "timeStyle",
-      ["none", "full", "long", "medium", "short"],
+      ["full", "long", "medium", "short"],
+      "none",
       renderedFormatOptions
     ),
   ];
+}
+
+const shortDate: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+};
+
+const longMonthDayYear: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+};
+
+const dayShortMonthYear: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+};
+
+const longDate: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "long",
+  weekday: "long",
+  day: "numeric",
+};
+
+const shortTime: Intl.DateTimeFormatOptions = {
+  hour: "numeric",
+  minute: "numeric",
+};
+
+const longTime: Intl.DateTimeFormatOptions = {
+  ...shortTime,
+  second: "numeric",
+};
+
+const formats: Record<string, Intl.DateTimeFormatOptions> = {
+  "short-date": shortDate,
+  "short-date-short-time": {
+    ...shortDate,
+    ...shortTime,
+  },
+  "short-date-short-time-24": {
+    ...shortDate,
+    ...shortTime,
+    hour12: false,
+  },
+  "short-date-long-time": {
+    ...shortDate,
+    ...longTime,
+  },
+  "short-date-long-time-24": {
+    ...shortDate,
+    ...longTime,
+    hour12: false,
+  },
+  "short-date-le": shortDate,
+  "short-date-le-short-time": {
+    ...shortDate,
+    ...shortTime,
+  },
+  "short-date-le-short-time-24": {
+    ...shortDate,
+    ...shortTime,
+    hour12: false,
+  },
+  "short-date-le-long-time": {
+    ...shortDate,
+    ...longTime,
+  },
+  "short-date-le-long-time-24": {
+    ...shortDate,
+    ...longTime,
+    hour12: false,
+  },
+  "long-month-day-year": longMonthDayYear,
+  "long-month-day-year-short-time": {
+    ...longMonthDayYear,
+    ...shortTime,
+  },
+  "long-month-day-year-short-time-24": {
+    ...longMonthDayYear,
+    ...shortTime,
+    hour12: false,
+  },
+  "long-month-day-year-long-time": {
+    ...longMonthDayYear,
+    ...longTime,
+  },
+  "long-month-day-year-long-time-24": {
+    ...longMonthDayYear,
+    ...longTime,
+    hour12: false,
+  },
+  "day-short-month-year": dayShortMonthYear,
+  "day-short-month-year-short-time": {
+    ...dayShortMonthYear,
+    ...shortTime,
+  },
+  "day-short-month-year-short-time-24": {
+    ...dayShortMonthYear,
+    ...shortTime,
+    hour12: false,
+  },
+  "day-short-month-year-long-time": {
+    ...dayShortMonthYear,
+    ...longTime,
+  },
+  "day-short-month-year-long-time-24": {
+    ...dayShortMonthYear,
+    ...longTime,
+    hour12: false,
+  },
+  "long-date": longDate,
+  "long-date-short-time": {
+    ...longDate,
+    ...shortTime,
+  },
+  "long-date-short-time-24": {
+    ...longDate,
+    ...shortTime,
+    hour12: false,
+  },
+  "long-date-long-time": {
+    ...longDate,
+    ...longTime,
+  },
+  "long-date-long-time-24": {
+    ...longDate,
+    ...longTime,
+    hour12: false,
+  },
+  "long-month-year": {
+    month: "long",
+    year: "numeric",
+  },
+  "short-month-year": {
+    month: "short",
+    year: "numeric",
+  },
+  year: {
+    year: "numeric",
+  },
+  "short-time": shortTime,
+  "long-time": longTime,
+};
+
+function renderWebMapStyleSelect() {
+  return (
+    <calcite-combobox
+      id="styleFromWebmapSelect"
+      placeholder="Select a web-map date format"
+      afterCreate={combine(
+        (el: any) => {
+          el.clearDisabled = true;
+          el.selectionMode = "single";
+        },
+        afterCreateEventHandler("calciteComboboxClose", (event: any) => {
+          const format = formats[event.target.value];
+          config.advanced = true;
+          config.options = {
+            ...format,
+            // Preserves the predefined key values
+            ...Object.assign(
+              {},
+              ...Array.from(predefinedKeys, (key) => ({
+                [key]: config.options[key],
+              }))
+            ),
+          };
+          pushState();
+          projector.scheduleRender();
+        })
+      )}
+    >
+      {Array.from(Object.keys(formats), (key) => {
+        return (
+          <calcite-combobox-item
+            value={key}
+            text-label={key}
+          ></calcite-combobox-item>
+        );
+      })}
+    </calcite-combobox>
+  );
 }
 
 function renderAdvancedStyleFormatOptions(
@@ -308,52 +623,69 @@ function renderAdvancedStyleFormatOptions(
   return [
     renderRadioButtonGroup(
       "weekday",
-      ["none", "long", "short", "narrow"],
+      ["long", "short", "narrow"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "era",
-      ["none", "long", "short", "narrow"],
+      ["long", "short", "narrow"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "year",
-      ["none", "numeric", "2-digit"],
+      ["numeric", "2-digit"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "month",
-      ["none", "numeric", "2-digit", "long", "short", "narrow"],
+      ["numeric", "2-digit", "long", "short", "narrow"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "day",
-      ["none", "numeric", "2-digit"],
+      ["numeric", "2-digit"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "hour",
-      ["none", "numeric", "2-digit"],
+      ["numeric", "2-digit"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "minute",
-      ["none", "numeric", "2-digit"],
+      ["numeric", "2-digit"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "second",
-      ["none", "numeric", "2-digit"],
+      ["numeric", "2-digit"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "fractionalSecondDigits",
-      ["none", "1", "2", "3"],
+      ["1", "2", "3"],
+      "none",
       renderedFormatOptions
     ),
     renderRadioButtonGroup(
       "timeZoneName",
-      ["none", "long", "short"],
+      [
+        "long",
+        "short",
+        "shortOffset",
+        "longOffset",
+        "shortGeneric",
+        "longGeneric",
+      ],
+      "none",
       renderedFormatOptions
     ),
   ];
@@ -362,6 +694,7 @@ function renderAdvancedStyleFormatOptions(
 function renderRadioButtonGroup<K extends keyof DateTimeFormatOptions>(
   property: K,
   values: string[],
+  undefinedLabel: string,
   formatOptions: DateTimeFormatOptions
 ) {
   return (
@@ -372,12 +705,18 @@ function renderRadioButtonGroup<K extends keyof DateTimeFormatOptions>(
         scale="s"
         width="full"
       >
+        <calcite-segmented-control-item
+          value={undefined}
+          checked={formatOptions[property] === undefined}
+        >
+          {undefinedLabel}
+        </calcite-segmented-control-item>
         {values.map((value) => {
-          const checked =
-            formatOptions[property] ===
-            (value === "none" || value === "auto" ? undefined : value);
           return (
-            <calcite-segmented-control-item value={value} checked={checked}>
+            <calcite-segmented-control-item
+              value={value}
+              checked={String(formatOptions[property]) === value}
+            >
               {value}
             </calcite-segmented-control-item>
           );
@@ -410,6 +749,7 @@ function getFormatSnippet(
 ) {
   return `new Intl.DateTimeFormat('${locale}', {
 ${(Object.keys(options) as (keyof Intl.DateTimeFormatOptions)[])
+  .filter((key) => options[key] != null)
   .map((key) => {
     if (typeof options[key as keyof Intl.DateTimeFormatOptions] === "string") {
       return `  ${key}: '${options[key]}'`;
