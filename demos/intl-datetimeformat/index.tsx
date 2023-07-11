@@ -294,7 +294,7 @@ function render() {
           <div style="display: flex; flex-direction: column; width: 600px">
             <calcite-block heading="Formatting output" open>
               <calcite-label>
-                with fine grain style
+                with fine grain options
                 <calcite-input-text
                   afterCreate={setAttributes({ "read-only": "true" })}
                   value={fineGrainFormattedDate}

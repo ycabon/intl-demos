@@ -46643,7 +46643,7 @@
                     jsx("div", { style: "display: flex; flex-direction: column; width: 600px" },
                         jsx("calcite-block", { heading: "Formatting output", open: true },
                             jsx("calcite-label", null,
-                                "with fine grain style",
+                                "with fine grain options",
                                 jsx("calcite-input-text", { afterCreate: setAttributes({ "read-only": "true" }), value: fineGrainFormattedDate })),
                             jsx("calcite-label", null,
                                 "with predefined style",
