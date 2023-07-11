@@ -830,6 +830,13 @@
             }
         };
     }
+    function setAttributes(attr) {
+        return (el, projectionOptions, vnodeSelector, properties, children) => {
+            for (const key of Object.keys(attr)) {
+                el.setAttribute(key, attr[key]);
+            }
+        };
+    }
     function afterCreateEventHandler(type, listener) {
         return (el, projectionOptions, vnodeSelector, properties, children) => {
             el.addEventListener(type, listener);
@@ -46450,7 +46457,7 @@
     ]);
     const userLocales = new Set(localStorage.getItem("userLocales")?.split("#") ?? []);
     // Date to format
-    const date = new Date(2020, 2, 2, 0, 0, 0, 0);
+    const date = new Date(2023, 2, 2, 0, 0, 0, 0);
     function getOption(params, key, defaultValue) {
         return params.has(key)
             ? params.get(key) || undefined
@@ -46599,16 +46606,16 @@
         config = updateConfigFromURL();
         projector.scheduleRender();
     });
-    function getDateTimeFormatOptions() {
+    function getDateTimeFormatOptions(advanced = config.advanced) {
         const renderedFormatOptions = {
             ...config.options,
         };
         const keys = Object.keys(config.options);
         for (const key of keys) {
-            if (!config.advanced && fineGrainKeys.has(key)) {
+            if (!advanced && fineGrainKeys.has(key)) {
                 delete renderedFormatOptions[key];
             }
-            else if (config.advanced && predefinedKeys.has(key)) {
+            else if (advanced && predefinedKeys.has(key)) {
                 delete renderedFormatOptions[key];
             }
             else if (config.options[key] === "none" ||
@@ -46622,7 +46629,8 @@
     function render() {
         const renderedFormatOptions = getDateTimeFormatOptions();
         const formattedSnippet = getFormatSnippet(config.locale, renderedFormatOptions);
-        const formattedDate = getFormattedDate(config.locale, renderedFormatOptions);
+        const fineGrainFormattedDate = getFormattedDate(config.locale, getDateTimeFormatOptions(true));
+        const predefinedFormattedDate = getFormattedDate(config.locale, getDateTimeFormatOptions(false));
         return (jsx("calcite-shell", { theme: "light" },
             jsx("calcite-panel", { heading: "Intl.DateTimeFormat" },
                 jsx("calcite-action", { slot: "header-actions-end", icon: "refresh", text: "Reset changes made to Properties", appearance: "solid", scale: "m", "calcite-hydrated": "", onclick: reset }),
@@ -46633,8 +46641,13 @@
                         jsx("calcite-block", { heading: "Style", open: true, style: "width: 500px" }, renderStyleOptions(renderedFormatOptions)),
                         jsx("calcite-block", { heading: "Options", open: true, style: "width: 500px" }, renderCommonOptions(renderedFormatOptions))),
                     jsx("div", { style: "display: flex; flex-direction: column; width: 600px" },
-                        jsx("calcite-block", { heading: "Result", open: true },
-                            jsx("p", { style: "font-size: large; max-width: 600px" }, formattedDate)),
+                        jsx("calcite-block", { heading: "Formatting output", open: true },
+                            jsx("calcite-label", null,
+                                "with fine grain style",
+                                jsx("calcite-input-text", { afterCreate: setAttributes({ "read-only": "true" }), value: fineGrainFormattedDate })),
+                            jsx("calcite-label", null,
+                                "with predefined style",
+                                jsx("calcite-input-text", { afterCreate: setAttributes({ "read-only": "true" }), value: predefinedFormattedDate }))),
                         jsx("calcite-block", { heading: "Code", collapsible: true },
                             highlight("javascript", formattedSnippet),
                             jsx("div", { style: "display: flex; flex-direction: row; justify-content: space-between;" },

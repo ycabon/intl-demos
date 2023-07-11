@@ -27,7 +27,7 @@ const userLocales = new Set<string>(
 );
 
 // Date to format
-const date = new Date(2020, 2, 2, 0, 0, 0, 0);
+const date = new Date(2023, 2, 2, 0, 0, 0, 0);
 
 function getOption<K extends keyof DateTimeFormatOptions>(
   params: URLSearchParams,
@@ -218,7 +218,7 @@ window.addEventListener("popstate", (event) => {
   projector.scheduleRender();
 });
 
-function getDateTimeFormatOptions() {
+function getDateTimeFormatOptions(advanced = config.advanced) {
   const renderedFormatOptions: DateTimeFormatOptions = {
     ...config.options,
   };
@@ -226,9 +226,9 @@ function getDateTimeFormatOptions() {
   const keys = Object.keys(config.options) as (keyof DateTimeFormatOptions)[];
 
   for (const key of keys) {
-    if (!config.advanced && fineGrainKeys.has(key)) {
+    if (!advanced && fineGrainKeys.has(key)) {
       delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
-    } else if (config.advanced && predefinedKeys.has(key)) {
+    } else if (advanced && predefinedKeys.has(key)) {
       delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
     } else if (
       config.options[key] === "none" ||
@@ -249,7 +249,16 @@ function render() {
     config.locale,
     renderedFormatOptions
   );
-  const formattedDate = getFormattedDate(config.locale, renderedFormatOptions);
+
+  const fineGrainFormattedDate = getFormattedDate(
+    config.locale,
+    getDateTimeFormatOptions(true)
+  );
+
+  const predefinedFormattedDate = getFormattedDate(
+    config.locale,
+    getDateTimeFormatOptions(false)
+  );
 
   return (
     <calcite-shell theme="light">
@@ -283,8 +292,21 @@ function render() {
             </calcite-block>
           </div>
           <div style="display: flex; flex-direction: column; width: 600px">
-            <calcite-block heading="Result" open>
-              <p style="font-size: large; max-width: 600px">{formattedDate}</p>
+            <calcite-block heading="Formatting output" open>
+              <calcite-label>
+                with fine grain style
+                <calcite-input-text
+                  afterCreate={setAttributes({ "read-only": "true" })}
+                  value={fineGrainFormattedDate}
+                ></calcite-input-text>
+              </calcite-label>
+              <calcite-label>
+                with predefined style
+                <calcite-input-text
+                  afterCreate={setAttributes({ "read-only": "true" })}
+                  value={predefinedFormattedDate}
+                ></calcite-input-text>
+              </calcite-label>
             </calcite-block>
             <calcite-block heading="Code" collapsible>
               {highlight("javascript", formattedSnippet)}
