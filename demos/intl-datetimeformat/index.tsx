@@ -284,10 +284,10 @@ function render() {
             >
               {renderWebMapStyleSelect()}
             </calcite-block>
-            <calcite-block heading="Style" open style="width: 500px">
+            <calcite-block heading="Style" open>
               {renderStyleOptions(renderedFormatOptions)}
             </calcite-block>
-            <calcite-block heading="Options" open style="width: 500px">
+            <calcite-block heading="Options" open>
               {renderCommonOptions(renderedFormatOptions)}
             </calcite-block>
           </div>
