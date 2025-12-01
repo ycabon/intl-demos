@@ -46629,25 +46629,19 @@
     function render() {
         const renderedFormatOptions = getDateTimeFormatOptions();
         const formattedSnippet = getFormatSnippet(config.locale, renderedFormatOptions);
-        const fineGrainFormattedDate = getFormattedDate(config.locale, getDateTimeFormatOptions(true));
-        const predefinedFormattedDate = getFormattedDate(config.locale, getDateTimeFormatOptions(false));
         return (jsx("calcite-shell", { theme: "light" },
             jsx("calcite-panel", { heading: "Intl.DateTimeFormat" },
                 jsx("calcite-action", { slot: "header-actions-end", icon: "refresh", text: "Reset changes made to Properties", appearance: "solid", scale: "m", "calcite-hydrated": "", onclick: reset }),
                 jsx("div", { style: "background-color: #f0f0f0; width: 100%; height: 100%; display: flex; flex-direction: row; justify-content: center; gap: 16px;" },
-                    jsx("calcite-block", { heading: "Locale", open: true, style: "width: 200px" }, renderLocaleSelect(locales, config.locale)),
+                    jsx("calcite-block", { heading: "Locale", expanded: true, style: "width: 200px" }, renderLocaleSelect(locales, config.locale)),
                     jsx("div", { style: "display: flex; flex-direction: column;" },
-                        jsx("calcite-block", { heading: "WebMap date formats", open: true, style: "width: 500px" }, renderWebMapStyleSelect()),
-                        jsx("calcite-block", { heading: "Style", open: true }, renderStyleOptions(renderedFormatOptions)),
-                        jsx("calcite-block", { heading: "Options", open: true }, renderCommonOptions(renderedFormatOptions))),
+                        jsx("calcite-block", { heading: "WebMap date formats", expanded: true, style: "width: 500px" }, renderWebMapStyleSelect()),
+                        jsx("calcite-block", { heading: "Style", expanded: true }, renderStyleOptions(renderedFormatOptions)),
+                        jsx("calcite-block", { heading: "Options", expanded: true }, renderCommonOptions(renderedFormatOptions))),
                     jsx("div", { style: "display: flex; flex-direction: column; width: 600px" },
-                        jsx("calcite-block", { heading: "Formatting output", open: true },
-                            jsx("calcite-label", null,
-                                "with fine grain options",
-                                jsx("calcite-input-text", { afterCreate: setAttributes({ "read-only": "true" }), value: fineGrainFormattedDate })),
-                            jsx("calcite-label", null,
-                                "with predefined style",
-                                jsx("calcite-input-text", { afterCreate: setAttributes({ "read-only": "true" }), value: predefinedFormattedDate }))),
+                        jsx("calcite-block", { heading: "Formatting output", expanded: true },
+                            renderFormattedDateContent("Fine Grain", getDateTimeFormatOptions(true)),
+                            renderFormattedDateContent("Predefined Style", getDateTimeFormatOptions(false))),
                         jsx("calcite-block", { heading: "Code", collapsible: true },
                             highlight("javascript", formattedSnippet),
                             jsx("div", { style: "display: flex; flex-direction: row; justify-content: space-between;" },
@@ -46655,6 +46649,31 @@
                                 jsx("calcite-link", { target: "_blank", "icon-end": "launch", style: "align-self: end", href: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat" },
                                     jsx("code", null, "Intl.DateTimeFormat"),
                                     " on MDN"))))))));
+    }
+    function renderFormattedDateContent(title, formattingOptions) {
+        const formattedDate = getFormattedDate(config.locale, formattingOptions);
+        const formattedParts = getFormattedParts(config.locale, formattingOptions);
+        const formattedPartsString = formattedParts.map((part) => {
+            return (jsx("code", { key: part.type, style: "font-size: x-small; display: block;" },
+                part.type.padEnd(15, " "),
+                " : '",
+                part.value,
+                "'"));
+        });
+        return (jsx("calcite-block-section", { collapsible: true, text: title, expanded: true },
+            jsx("calcite-label", null,
+                jsx("code", { style: "font-size: small" }, "format()"),
+                jsx("calcite-input-text", { afterCreate: setAttributes({ "read-only": "true" }), value: formattedDate })),
+            jsx("calcite-label", null,
+                jsx("code", { style: "font-size: small" }, "formatToParts()"),
+                jsx("div", { styles: {
+                        padding: "8px 8px",
+                        display: "block",
+                        backgroundColor: "var(--calcite-input-text-background-color, var(--calcite-color-background))",
+                        borderColor: "var(--calcite-input-text-border-color, var(--calcite-color-border-input))",
+                        borderWidth: "1px",
+                        borderStyle: "solid",
+                    } }, formattedPartsString))));
     }
     function renderLocaleSelect(locales, currentLocale) {
         return [
@@ -46923,6 +46942,14 @@ ${Object.keys(options)
         }
         catch {
             return "";
+        }
+    }
+    function getFormattedParts(locale, options) {
+        try {
+            return new Intl.DateTimeFormat(locale, options).formatToParts(date);
+        }
+        catch {
+            return [];
         }
     }
     const projector = createProjector();

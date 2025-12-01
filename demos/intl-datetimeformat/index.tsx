@@ -7,10 +7,6 @@ import {
 } from "../utils/events";
 import { highlight } from "../utils/highlight";
 
-interface DateTimeFormatOptions extends Intl.DateTimeFormatOptions {
-  fractionalSecondDigits?: number | undefined;
-}
-
 // locales exposed through the UI
 const locales = new Set<string>([
   "en",
@@ -29,23 +25,21 @@ const userLocales = new Set<string>(
 // Date to format
 const date = new Date(2023, 2, 2, 0, 0, 0, 0);
 
-function getOption<K extends keyof DateTimeFormatOptions>(
+function getOption<K extends keyof Intl.DateTimeFormatOptions>(
   params: URLSearchParams,
   key: K,
-  defaultValue: DateTimeFormatOptions[K]
-): DateTimeFormatOptions[K] | undefined {
+  defaultValue: Intl.DateTimeFormatOptions[K]
+): Intl.DateTimeFormatOptions[K] | undefined {
   return params.has(key)
-    ? (params.get(key) as DateTimeFormatOptions[K]) || undefined
+    ? (params.get(key) as Intl.DateTimeFormatOptions[K]) || undefined
     : defaultValue;
 }
 
-const predefinedKeys = new Set<keyof DateTimeFormatOptions>([
+const predefinedKeys = new Set<keyof Intl.DateTimeFormatOptions>([
   "dateStyle",
   "timeStyle",
 ]);
-const fineGrainKeys = new Set<
-  keyof DateTimeFormatOptions | "fractionalSecondDigits"
->([
+const fineGrainKeys = new Set<keyof Intl.DateTimeFormatOptions>([
   "era",
   "year",
   "month",
@@ -62,7 +56,7 @@ const fineGrainKeys = new Set<
 type Config = {
   locale: string;
   advanced: boolean;
-  options: DateTimeFormatOptions;
+  options: Intl.DateTimeFormatOptions;
 };
 
 const defaultConfig: Config = {
@@ -137,7 +131,7 @@ function updateConfigFromURL(): Config {
         "fractionalSecondDigits",
         defaultOptions.fractionalSecondDigits
       ),
-    } as DateTimeFormatOptions,
+    } as Intl.DateTimeFormatOptions,
   };
 }
 
@@ -218,23 +212,27 @@ window.addEventListener("popstate", (event) => {
   projector.scheduleRender();
 });
 
-function getDateTimeFormatOptions(advanced = config.advanced) {
-  const renderedFormatOptions: DateTimeFormatOptions = {
+function getDateTimeFormatOptions(
+  advanced = config.advanced
+): Intl.DateTimeFormatOptions {
+  const renderedFormatOptions: Intl.DateTimeFormatOptions = {
     ...config.options,
   };
 
-  const keys = Object.keys(config.options) as (keyof DateTimeFormatOptions)[];
+  const keys = Object.keys(
+    config.options
+  ) as (keyof Intl.DateTimeFormatOptions)[];
 
   for (const key of keys) {
     if (!advanced && fineGrainKeys.has(key)) {
-      delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
+      delete renderedFormatOptions[key as keyof Intl.DateTimeFormatOptions];
     } else if (advanced && predefinedKeys.has(key)) {
-      delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
+      delete renderedFormatOptions[key as keyof Intl.DateTimeFormatOptions];
     } else if (
       config.options[key] === "none" ||
       config.options[key] === "auto"
     ) {
-      delete renderedFormatOptions[key as keyof DateTimeFormatOptions];
+      delete renderedFormatOptions[key as keyof Intl.DateTimeFormatOptions];
     }
   }
 
@@ -244,20 +242,9 @@ function getDateTimeFormatOptions(advanced = config.advanced) {
 //Renders the application content
 function render() {
   const renderedFormatOptions = getDateTimeFormatOptions();
-
   const formattedSnippet = getFormatSnippet(
     config.locale,
     renderedFormatOptions
-  );
-
-  const fineGrainFormattedDate = getFormattedDate(
-    config.locale,
-    getDateTimeFormatOptions(true)
-  );
-
-  const predefinedFormattedDate = getFormattedDate(
-    config.locale,
-    getDateTimeFormatOptions(false)
   );
 
   return (
@@ -273,40 +260,34 @@ function render() {
           onclick={reset}
         ></calcite-action>
         <div style="background-color: #f0f0f0; width: 100%; height: 100%; display: flex; flex-direction: row; justify-content: center; gap: 16px;">
-          <calcite-block heading="Locale" open style="width: 200px">
+          <calcite-block heading="Locale" expanded style="width: 200px">
             {renderLocaleSelect(locales, config.locale)}
           </calcite-block>
           <div style="display: flex; flex-direction: column;">
             <calcite-block
               heading="WebMap date formats"
-              open
+              expanded
               style="width: 500px"
             >
               {renderWebMapStyleSelect()}
             </calcite-block>
-            <calcite-block heading="Style" open>
+            <calcite-block heading="Style" expanded>
               {renderStyleOptions(renderedFormatOptions)}
             </calcite-block>
-            <calcite-block heading="Options" open>
+            <calcite-block heading="Options" expanded>
               {renderCommonOptions(renderedFormatOptions)}
             </calcite-block>
           </div>
           <div style="display: flex; flex-direction: column; width: 600px">
-            <calcite-block heading="Formatting output" open>
-              <calcite-label>
-                with fine grain options
-                <calcite-input-text
-                  afterCreate={setAttributes({ "read-only": "true" })}
-                  value={fineGrainFormattedDate}
-                ></calcite-input-text>
-              </calcite-label>
-              <calcite-label>
-                with predefined style
-                <calcite-input-text
-                  afterCreate={setAttributes({ "read-only": "true" })}
-                  value={predefinedFormattedDate}
-                ></calcite-input-text>
-              </calcite-label>
+            <calcite-block heading="Formatting output" expanded>
+              {renderFormattedDateContent(
+                "Fine Grain",
+                getDateTimeFormatOptions(true)
+              )}
+              {renderFormattedDateContent(
+                "Predefined Style",
+                getDateTimeFormatOptions(false)
+              )}
             </calcite-block>
             <calcite-block heading="Code" collapsible>
               {highlight("javascript", formattedSnippet)}
@@ -334,6 +315,69 @@ function render() {
         </div>
       </calcite-panel>
     </calcite-shell>
+  );
+}
+
+function renderFormattedDateContent(
+  title: string,
+  formattingOptions: Intl.DateTimeFormatOptions
+) {
+  const formattedDate = getFormattedDate(config.locale, formattingOptions);
+  const formattedParts = getFormattedParts(config.locale, formattingOptions);
+
+  const formattedPartsString = formattedParts.map((part) => {
+    return (
+      <code key={part.type} style="font-size: x-small; display: block;">
+        {part.type.padEnd(15, " ")} : '{part.value}'
+      </code>
+    );
+  });
+
+  return (
+    <calcite-block-section collapsible text={title} expanded>
+      <calcite-label>
+        <code style="font-size: small">format()</code>
+        <calcite-input-text
+          afterCreate={setAttributes({ "read-only": "true" })}
+          value={formattedDate}
+        ></calcite-input-text>
+      </calcite-label>
+      <calcite-label>
+        <code style="font-size: small">formatToParts()</code>
+        <div
+          styles={{
+            padding: "8px 8px",
+            display: "block",
+            backgroundColor:
+              "var(--calcite-input-text-background-color, var(--calcite-color-background))",
+            borderColor:
+              "var(--calcite-input-text-border-color, var(--calcite-color-border-input))",
+            borderWidth: "1px",
+            borderStyle: "solid",
+          }}
+        >
+          {formattedPartsString}
+        </div>
+        {/* <calcite-table
+          caption="Formatted parts"
+          interaction-mode="static"
+          layout="auto"
+          scale="s"
+          striped
+        >
+          <calcite-table-row slot="table-header">
+            <calcite-table-header heading="Type"></calcite-table-header>
+            <calcite-table-header heading="Value"></calcite-table-header>
+          </calcite-table-row>
+          {formattedParts.map((part) => (
+            <calcite-table-row>
+              <calcite-table-cell>{part.type}</calcite-table-cell>
+              <calcite-table-cell>{part.value}</calcite-table-cell>
+            </calcite-table-row>
+          ))}
+        </calcite-table> */}
+      </calcite-label>
+    </calcite-block-section>
   );
 }
 
@@ -384,7 +428,9 @@ function renderLocaleSelect(locales: Set<string>, currentLocale: string) {
   ];
 }
 
-function renderCommonOptions(renderedFormatOptions: DateTimeFormatOptions) {
+function renderCommonOptions(
+  renderedFormatOptions: Intl.DateTimeFormatOptions
+) {
   return [
     renderRadioButtonGroup(
       "hour12",
@@ -401,7 +447,7 @@ function renderCommonOptions(renderedFormatOptions: DateTimeFormatOptions) {
   ];
 }
 
-function renderStyleOptions(renderedFormatOptions: DateTimeFormatOptions) {
+function renderStyleOptions(renderedFormatOptions: Intl.DateTimeFormatOptions) {
   return (
     <calcite-tabs layout="center">
       <calcite-tab-nav slot="title-group">
@@ -435,7 +481,7 @@ function renderStyleOptions(renderedFormatOptions: DateTimeFormatOptions) {
 }
 
 function renderStyleFormatOptions(
-  renderedFormatOptions: DateTimeFormatOptions
+  renderedFormatOptions: Intl.DateTimeFormatOptions
 ) {
   return [
     renderRadioButtonGroup(
@@ -640,7 +686,7 @@ function renderWebMapStyleSelect() {
 }
 
 function renderAdvancedStyleFormatOptions(
-  renderedFormatOptions: DateTimeFormatOptions
+  renderedFormatOptions: Intl.DateTimeFormatOptions
 ) {
   return [
     renderRadioButtonGroup(
@@ -713,11 +759,11 @@ function renderAdvancedStyleFormatOptions(
   ];
 }
 
-function renderRadioButtonGroup<K extends keyof DateTimeFormatOptions>(
+function renderRadioButtonGroup<K extends keyof Intl.DateTimeFormatOptions>(
   property: K,
   values: string[],
   undefinedLabel: string,
-  formatOptions: DateTimeFormatOptions
+  formatOptions: Intl.DateTimeFormatOptions
 ) {
   return (
     <calcite-label key={property}>
@@ -748,7 +794,7 @@ function renderRadioButtonGroup<K extends keyof DateTimeFormatOptions>(
   );
 }
 
-function radioHandler<K extends keyof DateTimeFormatOptions>(prop: K) {
+function radioHandler<K extends keyof Intl.DateTimeFormatOptions>(prop: K) {
   return afterCreateEventHandler(
     "calciteSegmentedControlChange",
     (event: any) => {
@@ -800,6 +846,17 @@ function getFormattedDate(
     return new Intl.DateTimeFormat(locale, options).format(date);
   } catch {
     return "";
+  }
+}
+
+function getFormattedParts(
+  locale: string,
+  options: Partial<Intl.DateTimeFormatOptions>
+) {
+  try {
+    return new Intl.DateTimeFormat(locale, options).formatToParts(date);
+  } catch {
+    return [];
   }
 }
 

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "jsx": "react",
     "jsxFactory": "jsx",
-    "target": "ES2020",
+    "target": "esnext",
     "strict": true,
     "moduleResolution": "node",
     "experimentalDecorators": true
